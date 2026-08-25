@@ -1,0 +1,25 @@
+{
+  "id": "/",
+  "name": "Found & Made",
+  "short_name": "Found & Made",
+  "description": "A private-first place to keep, cook, and share recipes.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#e7dcc6",
+  "theme_color": "#214a33",
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/maskable-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Found and Made">
+  <rect width="512" height="512" rx="112" fill="#e7dcc6"/>
+  <path d="M130 111h252v290H130z" fill="#fbf6eb" stroke="#214a33" stroke-width="24"/>
+  <path d="M188 183h136M188 245h136M188 307h91" fill="none" stroke="#6f4c2b" stroke-linecap="round" stroke-width="24"/>
+  <path d="M336 315c-30 0-54 24-54 54h108c0-30-24-54-54-54Z" fill="#2f5b3f"/>
+</svg>

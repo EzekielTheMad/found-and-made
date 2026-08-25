@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Installation and configuration support
+    url: https://github.com/EzekielTheMad/found-and-made/blob/main/SUPPORT.md
+    about: Read the support checklist before opening a bug report.
+  - name: Private security report
+    url: https://github.com/EzekielTheMad/found-and-made/security/advisories/new
+    about: Report suspected vulnerabilities privately.

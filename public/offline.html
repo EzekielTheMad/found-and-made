@@ -1,0 +1,715 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#214a33" />
+    <title>Found &amp; Made offline</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: system-ui, sans-serif;
+        background: #e7dcc6;
+        color: #2d3b31;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+      }
+      header {
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+        padding: 1rem max(1rem, calc((100% - 54rem) / 2));
+        border-bottom: 1px solid #b6a78d;
+        background: #214a33;
+      }
+      header img {
+        width: 2.5rem;
+        height: 2.5rem;
+      }
+      header strong {
+        color: #fff8e8;
+        font-family: Georgia, serif;
+        font-size: 1.2rem;
+      }
+      main {
+        width: min(54rem, 100%);
+        margin: auto;
+        padding: 1.25rem;
+      }
+      h1,
+      h2 {
+        color: #214d34;
+        font-family: Georgia, serif;
+      }
+      .status {
+        padding: 0.75rem 1rem;
+        border-radius: 0.5rem;
+        background: #e8dcc1;
+      }
+      .status[data-kind="saved"] {
+        background: #dce7d8;
+      }
+      .card {
+        margin: 1rem 0;
+        padding: 1rem;
+        border: 1px solid #b6a78d;
+        border-radius: 0.75rem;
+        background: #fbf6eb;
+      }
+      .library {
+        display: grid;
+        gap: 0.75rem;
+        padding: 0;
+        list-style: none;
+      }
+      a {
+        color: #214d34;
+      }
+      label {
+        display: flex;
+        gap: 0.65rem;
+        align-items: flex-start;
+        margin: 0.75rem 0;
+        line-height: 1.45;
+      }
+      input[type="checkbox"] {
+        width: 1.25rem;
+        height: 1.25rem;
+        flex: 0 0 auto;
+      }
+      input[type="number"],
+      textarea {
+        width: 100%;
+        border: 1px solid #7b887d;
+        border-radius: 0.4rem;
+        padding: 0.65rem;
+        font: inherit;
+        background: white;
+      }
+      textarea {
+        min-height: 7rem;
+      }
+      button {
+        border: 0;
+        border-radius: 999px;
+        padding: 0.7rem 1rem;
+        color: white;
+        background: #2f5b3f;
+        font: inherit;
+        cursor: pointer;
+      }
+      .row {
+        display: flex;
+        align-items: end;
+        gap: 0.75rem;
+      }
+      .row > label {
+        display: block;
+        flex: 1;
+        margin: 0;
+      }
+      .muted {
+        color: #4f5b52;
+        font-size: 0.9rem;
+      }
+      .media {
+        max-width: 100%;
+        border-radius: 0.6rem;
+      }
+      [hidden] {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body data-offline="loading">
+    <header>
+      <img src="/icons/icon.svg" alt="" />
+      <strong>Found &amp; Made</strong>
+    </header>
+    <main>
+      <p id="connection" class="status" role="status">
+        Opening saved recipes...
+      </p>
+      <div id="content"></div>
+      <section id="unavailable" class="card" hidden>
+        <h1>This is not available offline</h1>
+        <p id="error-message">Reconnect and open this page again.</p>
+        <button type="button" id="retry">Try again</button>
+      </section>
+    </main>
+    <script>
+      "use strict";
+
+      const MESSAGE = {
+        recover: "FOUND_MADE_OFFLINE_RECOVER_CONTEXT",
+        queue: "FOUND_MADE_OFFLINE_QUEUE_OPERATION",
+        flush: "FOUND_MADE_OFFLINE_FLUSH_REQUEST",
+        result: "FOUND_MADE_OFFLINE_RESULT",
+        sync: "FOUND_MADE_OFFLINE_SYNC_REQUIRED",
+      };
+      const pending = new Map();
+      let worker;
+      let queuedOperations = [];
+      let activeRecipe;
+      let cookingSession;
+
+      navigator.serviceWorker.addEventListener("message", (event) => {
+        const message = event.data;
+        if (!message || typeof message !== "object") return;
+        if (message.type === MESSAGE.sync) {
+          queuedOperations = Array.isArray(message.operations)
+            ? message.operations
+            : [];
+          showStatus(
+            `${queuedOperations.length} offline change${queuedOperations.length === 1 ? "" : "s"} waiting to sync.`,
+            "saved",
+          );
+          return;
+        }
+        if (message.type === MESSAGE.result && pending.has(message.requestId)) {
+          const callbacks = pending.get(message.requestId);
+          pending.delete(message.requestId);
+          message.ok
+            ? callbacks.resolve(message)
+            : callbacks.reject(
+                new Error(message.error || "Offline request failed."),
+              );
+        }
+      });
+
+      document
+        .querySelector("#retry")
+        .addEventListener("click", () => location.reload());
+
+      void start();
+
+      async function start() {
+        try {
+          const registration = await navigator.serviceWorker.ready;
+          worker = navigator.serviceWorker.controller || registration.active;
+          if (!worker) throw new Error("Offline support is not active.");
+          await send(MESSAGE.recover, {});
+          await send(MESSAGE.flush, {});
+
+          const recipeMatch =
+            /^\/recipes\/([A-Za-z0-9][A-Za-z0-9._:-]{7,127})\/?$/.exec(
+              location.pathname,
+            );
+          if (location.pathname === "/") {
+            await renderLibrary();
+          } else if (recipeMatch && recipeMatch[1]) {
+            await renderRecipe(recipeMatch[1]);
+          } else {
+            throw new Error("This page was not saved for offline use.");
+          }
+        } catch (error) {
+          showUnavailable(
+            error instanceof Error
+              ? error.message
+              : "Saved content could not be opened.",
+          );
+        }
+      }
+
+      function send(type, details) {
+        const requestId = crypto.randomUUID();
+        return new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            pending.delete(requestId);
+            reject(new Error("Offline support did not respond."));
+          }, 5000);
+          pending.set(requestId, {
+            resolve: (value) => {
+              clearTimeout(timeout);
+              resolve(value);
+            },
+            reject: (error) => {
+              clearTimeout(timeout);
+              reject(error);
+            },
+          });
+          worker.postMessage({ type, requestId, ...details });
+        });
+      }
+
+      async function cachedJson(path) {
+        const response = await fetch(path, {
+          headers: { accept: "application/json" },
+        });
+        if (!response.ok) {
+          const body = await response.json().catch(() => ({}));
+          throw new Error(
+            body.reason === "not-cached"
+              ? "This recipe was not saved on this device."
+              : "Saved content is unavailable.",
+          );
+        }
+        const cachedAt = response.headers.get("x-found-made-cached-at");
+        showStatus(
+          cachedAt
+            ? `Offline copy saved ${new Date(cachedAt).toLocaleString()}.`
+            : "Showing a saved offline copy.",
+          "saved",
+        );
+        return response.json();
+      }
+
+      async function renderLibrary() {
+        const data = await cachedJson("/api/offline/library");
+        const recipes = Array.isArray(data.recipes) ? data.recipes : [];
+        const content = document.querySelector("#content");
+        content.replaceChildren();
+        content.append(element("h1", {}, "Saved recipes"));
+        if (recipes.length === 0) {
+          content.append(
+            element("p", {}, "No recipes have been saved on this device."),
+          );
+          return;
+        }
+        const search = element("input", {
+          type: "search",
+          placeholder: "Search saved recipes",
+          ariaLabel: "Search saved recipes",
+        });
+        const list = element("ul", { className: "library" });
+        const draw = () => {
+          const query = search.value.trim().toLowerCase();
+          list.replaceChildren();
+          for (const recipe of recipes.filter((item) =>
+            String(item.title || "")
+              .toLowerCase()
+              .includes(query),
+          )) {
+            const link = element(
+              "a",
+              { href: `/recipes/${encodeURIComponent(recipe.id)}` },
+              recipe.title || "Untitled recipe",
+            );
+            const card = element("li", { className: "card" }, link);
+            if (recipe.yieldText)
+              card.append(
+                element("p", { className: "muted" }, recipe.yieldText),
+              );
+            list.append(card);
+          }
+        };
+        search.addEventListener("input", draw);
+        draw();
+        content.append(search, list);
+      }
+
+      async function renderRecipe(recipeId) {
+        activeRecipe = await cachedJson(
+          `/api/offline/recipes/${encodeURIComponent(recipeId)}`,
+        );
+        applyQueuedState();
+        initializeCookingSession();
+        const content = document.querySelector("#content");
+        content.replaceChildren();
+        content.append(
+          element(
+            "p",
+            {},
+            element("a", { href: "/" }, "Back to saved recipes"),
+          ),
+        );
+        content.append(
+          element("h1", {}, activeRecipe.title || "Untitled recipe"),
+        );
+
+        const hero =
+          Array.isArray(activeRecipe.media) &&
+          activeRecipe.media.find((item) => item.role === "hero");
+        if (hero && hero.url)
+          content.append(
+            element("img", {
+              className: "media",
+              src: hero.url,
+              alt: hero.altText || "",
+            }),
+          );
+
+        const scaleCard = element(
+          "section",
+          { className: "card" },
+          element("h2", {}, "Scale"),
+        );
+        const targetYield = element("input", {
+          type: "number",
+          min: "0.01",
+          step: "any",
+          value: String(
+            activeRecipe.personal?.targetYield || activeRecipe.baseYield || 1,
+          ),
+        });
+        const scaleButton = element("button", { type: "button" }, "Apply");
+        scaleButton.addEventListener("click", async () => {
+          const value = Number(targetYield.value);
+          if (!(value > 0)) return;
+          activeRecipe.personal.targetYield = value;
+          await queue("cooking.scale.set", { targetYield: value });
+          renderIngredientList(content.querySelector("#ingredients"), value);
+        });
+        scaleCard.append(
+          element(
+            "div",
+            { className: "row" },
+            element("label", {}, "Target yield", targetYield),
+            scaleButton,
+          ),
+        );
+        content.append(scaleCard);
+
+        const ingredients = element("section", {
+          className: "card",
+          id: "ingredients",
+        });
+        content.append(ingredients);
+        renderIngredientList(ingredients, Number(targetYield.value));
+
+        const steps = element(
+          "section",
+          { className: "card" },
+          element("h2", {}, "Steps"),
+        );
+        for (const [stepIndex, step] of (activeRecipe.steps || []).entries()) {
+          const checkbox = element("input", {
+            type: "checkbox",
+            checked: step.status === "completed",
+          });
+          checkbox.addEventListener("change", () => {
+            step.status = checkbox.checked ? "completed" : "pending";
+            void queue("cooking.step-progress.set", {
+              stepId: step.id,
+              status: step.status,
+              guidedStepIndex: stepIndex,
+            });
+          });
+          steps.append(
+            element(
+              "label",
+              {},
+              checkbox,
+              element("span", {}, step.instruction || "Step"),
+            ),
+          );
+        }
+        content.append(steps);
+
+        const note = element("textarea", {}, activeRecipe.personal?.note || "");
+        const saveNote = element(
+          "button",
+          { type: "button" },
+          "Save note offline",
+        );
+        saveNote.addEventListener(
+          "click",
+          () => void queue("cooking.note.set", { value: note.value }),
+        );
+        content.append(
+          element(
+            "section",
+            { className: "card" },
+            element("h2", {}, "My note"),
+            note,
+            saveNote,
+          ),
+        );
+
+        const timers = element(
+          "section",
+          { className: "card" },
+          element("h2", {}, "Timers"),
+        );
+        for (const timer of activeRecipe.personal?.timers || [])
+          renderTimer(timers, timer);
+        const minutes = element("input", {
+          type: "number",
+          min: "0.1",
+          step: "0.1",
+          value: "5",
+        });
+        const addTimer = element("button", { type: "button" }, "Start timer");
+        addTimer.addEventListener("click", async () => {
+          const seconds = Math.round(Number(minutes.value) * 60);
+          if (!(seconds > 0)) return;
+          const timer = {
+            id: crypto.randomUUID(),
+            label: "Timer",
+            durationSeconds: seconds,
+            remainingSeconds: seconds,
+            state: "running",
+            startedAt: new Date().toISOString(),
+          };
+          activeRecipe.personal.timers.push(timer);
+          await queue("cooking.timer.set", timer);
+          renderTimer(timers, timer);
+        });
+        timers.append(
+          element(
+            "div",
+            { className: "row" },
+            element("label", {}, "Minutes", minutes),
+            addTimer,
+          ),
+        );
+        content.append(timers);
+      }
+
+      function renderIngredientList(container, targetYield) {
+        container.replaceChildren(element("h2", {}, "Ingredients"));
+        for (const ingredient of activeRecipe.ingredients || []) {
+          const checkbox = element("input", {
+            type: "checkbox",
+            checked: Boolean(ingredient.checked),
+          });
+          checkbox.addEventListener("change", () => {
+            ingredient.checked = checkbox.checked;
+            void queue("cooking.ingredient-check.set", {
+              ingredientId: ingredient.id,
+              checked: checkbox.checked,
+            });
+          });
+          const amount = scaledQuantity(
+            ingredient.quantity,
+            activeRecipe.baseYield,
+            targetYield,
+          );
+          container.append(
+            element(
+              "label",
+              {},
+              checkbox,
+              element(
+                "span",
+                {},
+                [amount, ingredient.name || ingredient.requirement]
+                  .filter(Boolean)
+                  .join(" "),
+              ),
+            ),
+          );
+        }
+      }
+
+      function scaledQuantity(quantity, baseYield, targetYield) {
+        if (!quantity) return "";
+        if (
+          quantity.scaling !== "proportional" ||
+          !quantity.asWritten?.from ||
+          !(baseYield > 0)
+        )
+          return quantity.text || quantity.asWritten?.text || "";
+        const factor = targetYield / baseYield;
+        const from = rational(quantity.asWritten.from) * factor;
+        const to = quantity.asWritten.to
+          ? rational(quantity.asWritten.to) * factor
+          : null;
+        const number =
+          to === null
+            ? formatNumber(from)
+            : `${formatNumber(from)}-${formatNumber(to)}`;
+        return [number, quantity.unit].filter(Boolean).join(" ");
+      }
+
+      function rational(value) {
+        return Number(value.numerator) / Number(value.denominator || 1);
+      }
+      function formatNumber(value) {
+        return Number(value.toFixed(2)).toString();
+      }
+
+      function renderTimer(container, timer) {
+        const output = element("span", {}, "");
+        const updateOutput = () => {
+          const seconds = timerRemaining(timer);
+          output.textContent = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")} `;
+        };
+        updateOutput();
+        const interval = setInterval(updateOutput, 1000);
+        window.addEventListener("pagehide", () => clearInterval(interval), {
+          once: true,
+        });
+        const button = element(
+          "button",
+          { type: "button" },
+          timer.state === "running" ? "Pause" : "Resume",
+        );
+        button.addEventListener("click", async () => {
+          if (timer.state === "running") {
+            timer.remainingSeconds = timerRemaining(timer);
+            timer.startedAt = null;
+            timer.state = "paused";
+          } else {
+            timer.startedAt = new Date().toISOString();
+            timer.state = "running";
+          }
+          button.textContent = timer.state === "running" ? "Pause" : "Resume";
+          await queue("cooking.timer.set", {
+            timerId: timer.id,
+            durationSeconds: timer.durationSeconds,
+            remainingSeconds: timer.remainingSeconds,
+            state: timer.state,
+            startedAt: timer.startedAt,
+          });
+          updateOutput();
+        });
+        container.append(element("p", {}, output, button));
+      }
+
+      function timerRemaining(timer) {
+        if (timer.state !== "running" || !timer.startedAt)
+          return Math.max(0, Math.round(timer.remainingSeconds));
+        const elapsed = Math.max(
+          0,
+          Math.floor((Date.now() - Date.parse(timer.startedAt)) / 1000),
+        );
+        return Math.max(0, Math.round(timer.remainingSeconds) - elapsed);
+      }
+
+      async function queue(kind, payload) {
+        let normalized =
+          kind === "cooking.timer.set" && payload.id
+            ? { ...payload, timerId: payload.id }
+            : payload;
+        const isSessionMutation = kind !== "cooking.note.set";
+        if (kind === "cooking.ingredient-check.set") {
+          normalized = {
+            ...normalized,
+            checkedIngredientIds: activeRecipe.ingredients
+              .filter((ingredient) => ingredient.checked)
+              .map((ingredient) => ingredient.id),
+          };
+        } else if (kind === "cooking.timer.set") {
+          normalized = { ...normalized, timers: timerSnapshot() };
+        }
+        if (isSessionMutation) {
+          normalized = {
+            ...normalized,
+            sessionId: cookingSession.sessionId,
+            clientSessionId: cookingSession.clientSessionId,
+            expectedVersion: cookingSession.nextVersion,
+          };
+        }
+        await send(MESSAGE.queue, {
+          operation: {
+            id: crypto.randomUUID(),
+            kind,
+            recipeId: activeRecipe.id,
+            payload: normalized,
+            createdAt: new Date().toISOString(),
+          },
+        });
+        if (isSessionMutation) cookingSession.nextVersion += 1;
+        queuedOperations.push({
+          kind,
+          recipeId: activeRecipe.id,
+          payload: normalized,
+        });
+        showStatus(
+          `Saved offline. ${queuedOperations.length} change${queuedOperations.length === 1 ? "" : "s"} waiting to sync.`,
+          "saved",
+        );
+      }
+
+      function timerSnapshot() {
+        return activeRecipe.personal.timers.map((timer, index) => ({
+          id: timer.id,
+          label: timer.label || `Timer ${index + 1}`,
+          durationSeconds: timer.durationSeconds,
+          remainingSeconds: timerRemaining(timer),
+          startedAt: timer.startedAt || null,
+          status: timer.state,
+        }));
+      }
+
+      function initializeCookingSession() {
+        const prior = queuedOperations.filter(
+          (operation) =>
+            operation.recipeId === activeRecipe.id &&
+            operation.payload?.clientSessionId,
+        );
+        const latest = prior.at(-1);
+        const clientSessionId =
+          latest?.payload.clientSessionId || crypto.randomUUID();
+        const cachedVersion = Number(
+          activeRecipe.personal?.sessionVersion || 0,
+        );
+        const queuedVersion = prior.reduce(
+          (highest, operation) =>
+            Math.max(highest, Number(operation.payload.expectedVersion) + 1),
+          0,
+        );
+        cookingSession = {
+          clientSessionId,
+          sessionId:
+            activeRecipe.personal?.sessionId ||
+            latest?.payload.sessionId ||
+            clientSessionId,
+          nextVersion: Math.max(cachedVersion, queuedVersion),
+        };
+      }
+
+      function applyQueuedState() {
+        for (const operation of queuedOperations.filter(
+          (item) => item.recipeId === activeRecipe.id,
+        )) {
+          const payload = operation.payload || {};
+          if (operation.kind === "cooking.note.set") {
+            activeRecipe.personal.note = payload.value;
+          } else if (operation.kind === "cooking.scale.set") {
+            activeRecipe.personal.targetYield = payload.targetYield;
+          } else if (operation.kind === "cooking.ingredient-check.set") {
+            const ingredient = activeRecipe.ingredients.find(
+              (item) => item.id === payload.ingredientId,
+            );
+            if (ingredient) ingredient.checked = payload.checked;
+          } else if (operation.kind === "cooking.step-progress.set") {
+            const step = activeRecipe.steps.find(
+              (item) => item.id === payload.stepId,
+            );
+            if (step) step.status = payload.status;
+          } else if (operation.kind === "cooking.timer.set") {
+            const timers = activeRecipe.personal.timers;
+            const existing = timers.find((item) => item.id === payload.timerId);
+            const timer = {
+              id: payload.timerId,
+              durationSeconds: payload.durationSeconds,
+              remainingSeconds: payload.remainingSeconds,
+              state: payload.state,
+              startedAt: payload.startedAt || null,
+            };
+            if (existing) Object.assign(existing, timer);
+            else timers.push(timer);
+          }
+        }
+      }
+
+      function showStatus(message, kind) {
+        const status = document.querySelector("#connection");
+        status.textContent = message;
+        status.dataset.kind = kind;
+        document.body.dataset.offline = kind;
+      }
+
+      function showUnavailable(message) {
+        document.querySelector("#content").replaceChildren();
+        document.querySelector("#connection").hidden = true;
+        document.querySelector("#error-message").textContent = message;
+        document.querySelector("#unavailable").hidden = false;
+        document.body.dataset.offline = "unavailable";
+      }
+
+      function element(tag, properties, ...children) {
+        const node = document.createElement(tag);
+        Object.assign(node, properties);
+        for (const child of children) node.append(child);
+        return node;
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,13 @@
+.DS_Store
+.data/
+.env
+.env.*
+!.env.example
+.react-router/
+build/
+coverage/
+node_modules/
+*.log
+*.tsbuildinfo
+test-results/
+playwright-report/

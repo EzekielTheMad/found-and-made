@@ -1,0 +1,7 @@
+<CommunityApplications>
+  <Profile>
+    Found &amp; Made is a self-hosted, privacy-first recipe library maintained for Unraid and Docker users. Installation support and non-sensitive bug reports belong in the linked GitHub repository.
+  </Profile>
+  <Icon>https://raw.githubusercontent.com/EzekielTheMad/found-and-made/main/icon.svg</Icon>
+  <WebPage>https://github.com/EzekielTheMad/found-and-made</WebPage>
+</CommunityApplications>

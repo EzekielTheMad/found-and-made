@@ -1,0 +1,12 @@
+* text=auto eol=lf
+*.sh text eol=lf
+Dockerfile text eol=lf
+
+# These files contain private development process and UAT evidence. A clean
+# public source snapshot must be created with `git archive`, which honors these
+# export exclusions without rewriting the private repository's history.
+AGENTS.md export-ignore
+design_handoff_found_and_made export-ignore
+design_handoff_found_and_made/** export-ignore
+docs/STATUS.md export-ignore
+docs/REQUIREMENTS_TRACEABILITY.md export-ignore

@@ -1,0 +1,20 @@
+name: found-and-made
+
+services:
+  found-and-made:
+    image: ghcr.io/ezekielthemad/found-and-made:${FOUND_AND_MADE_TAG:-beta}
+    container_name: found-and-made
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=128m
+    ports:
+      - "${FOUND_AND_MADE_PORT:-3000}:3000"
+    environment:
+      PUID: "${PUID:-1000}"
+      PGID: "${PGID:-1000}"
+      PUBLIC_ORIGIN: "${PUBLIC_ORIGIN:-http://localhost:3000}"
+      ALLOW_INSECURE_PUBLIC_ORIGIN: "${ALLOW_INSECURE_PUBLIC_ORIGIN:-true}"
+      TRUSTED_PROXY_RANGES: "${TRUSTED_PROXY_RANGES:-}"
+    volumes:
+      - ./found-and-made-data:/data

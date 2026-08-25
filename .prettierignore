@@ -1,0 +1,9 @@
+.data
+.react-router
+build
+coverage
+design_handoff_found_and_made
+docs/PRD.md
+drizzle
+node_modules
+package-lock.json

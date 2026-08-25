@@ -1,0 +1,16 @@
+.git
+.github
+.agents
+.codex
+.data
+design_handoff_found_and_made
+node_modules
+build
+dist
+coverage
+playwright-report
+test-results
+.env
+.env.*
+!.env.example
+data

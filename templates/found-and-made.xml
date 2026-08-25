@@ -1,0 +1,42 @@
+<Container version="2">
+  <Name>Found &amp; Made</Name>
+  <Repository>ghcr.io/ezekielthemad/found-and-made:beta</Repository>
+  <Registry>https://github.com/EzekielTheMad/found-and-made/pkgs/container/found-and-made</Registry>
+  <Network>bridge</Network>
+  <Shell>bash</Shell>
+  <Privileged>false</Privileged>
+  <Beta>true</Beta>
+
+  <Icon>https://raw.githubusercontent.com/EzekielTheMad/found-and-made/main/icon.svg</Icon>
+  <WebUI>http://[IP]:[PORT:3000]</WebUI>
+
+  <Overview>Self-hosted, privacy-first recipe library for importing, adapting, cooking offline, selectively publishing, and printing complete cookbooks. All durable data stays in one appdata directory.</Overview>
+  <Description>Found &amp; Made keeps recipes private by default and stores its SQLite database, media, exports, print files, keys, and backups under /data. It supports manual and assisted imports, exact serving scaling, Classic/Guided/Merge Grid views, cooking notes and history, public read-only pages, and print-ready cookbook projects. No cloud account is required.</Description>
+  <Support>https://github.com/EzekielTheMad/found-and-made/issues</Support>
+  <Project>https://github.com/EzekielTheMad/found-and-made</Project>
+  <ReadMe>https://github.com/EzekielTheMad/found-and-made#readme</ReadMe>
+  <TemplateURL>https://raw.githubusercontent.com/EzekielTheMad/found-and-made/main/templates/found-and-made.xml</TemplateURL>
+
+  <Category>Productivity:</Category>
+  <ExtraSearchTerms>recipe recipes cookbook cooking kitchen self-hosted privacy pwa</ExtraSearchTerms>
+  <Requires>Enter Public Origin as the exact browser-facing URL before installation. HTTP is intended only for trusted LAN use; use an HTTPS reverse proxy before exposing the app publicly. Persist and back up the complete /data directory.</Requires>
+  <MinVer>6.12.0</MinVer>
+  <License>AGPL-3.0-only</License>
+  <Changes>0.1.0-alpha.0 - Initial Community Apps beta template.</Changes>
+
+  <Screenshot>https://raw.githubusercontent.com/EzekielTheMad/found-and-made/main/docs/screenshots/library.jpg</Screenshot>
+  <Screenshot>https://raw.githubusercontent.com/EzekielTheMad/found-and-made/main/docs/screenshots/recipe-detail.jpg</Screenshot>
+  <Screenshot>https://raw.githubusercontent.com/EzekielTheMad/found-and-made/main/docs/screenshots/imports.jpg</Screenshot>
+  <Screenshot>https://raw.githubusercontent.com/EzekielTheMad/found-and-made/main/docs/screenshots/cookbook-builder.jpg</Screenshot>
+
+  <ExtraParams>--read-only --tmpfs /tmp:rw,nosuid,nodev,size=128m</ExtraParams>
+
+  <Config Name="WebUI Port" Target="3000" Default="3000" Mode="tcp" Description="Host port for the Found &amp; Made web interface." Type="Port" Display="always" Required="true" Mask="false"/>
+  <Config Name="Appdata" Target="/data" Default="/mnt/user/appdata/found-and-made" Mode="rw" Description="Persistent database, media, exports, print files, keys, and backups. Back up this complete directory." Type="Path" Display="always" Required="true" Mask="false"/>
+  <Config Name="Public Origin" Target="PUBLIC_ORIGIN" Default="" Mode="" Description="Required exact browser-facing origin with scheme and optional port, but no path. Example: http://UNRAID-IP:3000 or https://recipes.example.com." Type="Variable" Display="always" Required="true" Mask="false"/>
+  <Config Name="Allow insecure public origin" Target="ALLOW_INSECURE_PUBLIC_ORIGIN" Default="true" Mode="" Description="Keep true only for intentional HTTP LAN use. Set false when Public Origin uses HTTPS." Type="Variable" Display="always" Required="true" Mask="false"/>
+  <Config Name="PUID" Target="PUID" Default="99" Mode="" Description="Numeric user ID used for the non-root application process and /data ownership." Type="Variable" Display="advanced" Required="true" Mask="false"/>
+  <Config Name="PGID" Target="PGID" Default="100" Mode="" Description="Numeric group ID used for the non-root application process and /data ownership." Type="Variable" Display="advanced" Required="true" Mask="false"/>
+  <Config Name="Timezone" Target="TZ" Default="Etc/UTC" Mode="" Description="IANA timezone used for server-side dates and logs, for example America/Phoenix." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Trusted proxy ranges" Target="TRUSTED_PROXY_RANGES" Default="" Mode="" Description="Optional comma-separated proxy addresses or CIDRs. Leave blank for direct LAN access; never use a broad public range." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+</Container>
