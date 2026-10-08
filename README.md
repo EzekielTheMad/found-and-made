@@ -46,6 +46,34 @@ database, media, and backups on storage you control.
   recovery path. Google sign-in and OpenAI-compatible import assistance are
   optional.
 
+## Product case study
+
+**Problem and audience.** Home cooks collect recipes across websites, files, and
+personal adaptations. Found & Made brings that material into one editable,
+self-hosted library that stays useful while cooking and when making a cookbook.
+
+**My contribution.** I led product definition and AI-assisted delivery: writing
+the PRD, shaping the feature set and user experience, seeking feedback, and
+prioritizing useful outcomes within the available time and resources. Coding
+agents assisted implementation, with engineering decisions made collaboratively.
+
+**Key product tradeoffs:**
+
+- **Ownership with operating responsibility.** A single persistent data directory
+  makes the library portable, while self-hosting still requires backups and
+  careful upgrades.
+- **Private capture, deliberate sharing.** Import and editing happen privately;
+  publishing uses a smaller public view rather than exposing the whole record.
+- **Optional automation.** Manual entry and local accounts remain available.
+  Configured hosted import providers receive the material sent for processing;
+  self-hosted storage does not mean every optional integration runs locally.
+- **Useful release boundaries.** The beta focuses on collecting, adapting,
+  cooking, and printing recipes. External acceptance checks stay visible below.
+
+**Current result.** A public beta source release, multi-architecture container
+workflow, and documented verification gates. See the [product requirements](docs/PRD.md)
+and [release status](docs/RELEASE_STATUS.md) for the intended scope and evidence.
+
 ## See it in action
 
 | Recipe details and exact serving scaling                                 | Private imports from multiple sources                            |
@@ -198,3 +226,6 @@ are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md),
 
 Found & Made is licensed under the
 [GNU Affero General Public License v3.0](LICENSE).
+
+The software license does not grant rights to recipes, photos, or other material
+imported by users. Import and share only content you are entitled to use.
