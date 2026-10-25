@@ -1,0 +1,36 @@
+schema = 1
+name = "Found & Made"
+
+[runtime]
+kind = "node"
+version = "24"
+package_manager = "npm"
+
+[[setup.steps]]
+kind = "dependencies"
+locked = true
+
+[[setup.steps]]
+run = ["npm", "run", "build"]
+
+[launch]
+command = ["npm", "start"]
+host = "127.0.0.1"
+host_env = "HOST"
+port = 4173
+port_env = "PORT"
+
+[launch.environment]
+NODE_ENV = "production"
+DATA_DIR = ".data"
+# Keep this origin aligned with the launch port for local authentication.
+PUBLIC_ORIGIN = "http://127.0.0.1:4173"
+ALLOW_INSECURE_PUBLIC_ORIGIN = "true"
+
+[health]
+type = "http"
+path = "/health/ready"
+timeout_seconds = 90
+
+[persistence]
+paths = [".data"]
